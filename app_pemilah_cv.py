@@ -152,8 +152,9 @@ if uploaded_files:
             df_chart = df_results['Posisi (AI)'].value_counts().reset_index()
             df_chart.columns = ['Posisi', 'Jumlah']
             
+            # Menggunakan format='d' pada sumbu X agar angka berupa bilangan bulat tanpa desimal
             chart = alt.Chart(df_chart).mark_bar(color='#4c78a8').encode(
-                x=alt.X('Jumlah:Q', title='Jumlah Kandidat'),
+                x=alt.X('Jumlah:Q', title='Jumlah Kandidat', axis=alt.Axis(format='d')),
                 y=alt.Y('Posisi:N', sort='-x', title='Posisi')
             ).properties(height=250)
             
