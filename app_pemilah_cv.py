@@ -56,14 +56,15 @@ except:
 def extract_text_from_pdf(pdf_file):
     try:
         reader = PyPDF2.PdfReader(pdf_file)
-        return "".join([page.extract_text() for page in reader.pages if page.extract_text()]).lower()
+        # Menggunakan teks asli (tanpa .lower() penuh untuk bagian kontak jika diperlukan, tapi lowercase aman untuk regex email/hp)
+        return "".join([page.extract_text() for page in reader.pages if page.extract_text()])
     except:
         return ""
 
 def extract_text_from_docx(docx_file):
     try:
         doc = docx.Document(docx_file)
-        return "\n".join([para.text for para in doc.paragraphs]).lower()
+        return "\n".join([para.text for para in doc.paragraphs])
     except:
         return ""
 
@@ -73,11 +74,18 @@ def extract_contact_info(text):
     email_match = re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', text)
     email = email_match.group(0) if email_match else "-"
     
-    # 2. Cari Nomor HP dengan membersihkan spasi/simbol terlebih dahulu agar 100% akurat
-    text_clean_phone = re.sub(r'[^0-9+]', '', text) # Hanya menyisakan angka dan tanda +
-    phone_matches = re.findall(r'(?:\+62|62|08)[0-9]{8,12}', text_clean_phone)
+    # 2. Cari Nomor HP secara presisi pada teks asli (mencegah angka acak tergabung)
+    phone_pattern = r'(?:\+62|62|08)[\s\-0-9]{8,15}'
+    matches = re.findall(phone_pattern, text)
     
-    unique_phones = list(set(phone_matches))
+    cleaned_phones = []
+    for m in matches:
+        num = re.sub(r'[^0-9+]', '', m)
+        # Pastikan panjang digit valid untuk nomor HP Indonesia (9 s.d. 14 digit)
+        if 9 <= len(num.replace('+', '')) <= 14:
+            cleaned_phones.append(num)
+            
+    unique_phones = list(set(cleaned_phones))
     phone = ", ".join(unique_phones) if unique_phones else "-"
     
     return email, phone
