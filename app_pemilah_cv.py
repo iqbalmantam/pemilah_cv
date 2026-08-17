@@ -69,25 +69,27 @@ def extract_text_from_docx(docx_file):
 
 # ==================== FUNGSI REGEX & AI ====================
 def extract_contact_info(text):
+    # 1. Cari Email
     email_match = re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', text)
     email = email_match.group(0) if email_match else "-"
     
-    clean_text = text.replace(" ", "").replace("-", "")
-    phone_match = re.search(r'(\+62|62|08)[0-9]{8,11}', clean_text)
-    phone = phone_match.group(0) if phone_match else "-"
+    # 2. Cari semua Nomor HP (fleksibel terhadap spasi/strip)
+    phone_pattern = r'(?:\+62|62|08)[0-9][\s-]*[0-9]{3,4}[\s-]*[0-9]{3,4}[\s-]?[0-9]{0,4}'
+    phones = re.findall(phone_pattern, text)
+    unique_phones = list(set([p.replace(" ", "").replace("-", "") for p in phones]))
+    phone = ", ".join(unique_phones) if unique_phones else "-"
     
     return email, phone
 
 def analyze_cv_with_groq(text):
-    # Prompt diperbarui: AI menentukan profil secara mandiri
     prompt = f"""
     Anda adalah HR Expert. Analisis teks CV berikut.
     Tugas Anda:
     1. Ekstrak Nama Lengkap kandidat.
-    2. Tentukan Profil Profesional/Latar Belakang utama kandidat (misal: "Administrasi", "Logistik", "Akuntan", "Tenaga Kesehatan", "IT Support"). Jangan gunakan daftar kaku, tentukan berdasarkan isi CV.
-    3. Berikan skor kecocokan (0-100) berdasarkan profil profesional tersebut terhadap dunia kerja.
-    4. Ekstrak total pengalaman kerja (dalam angka tahun).
-    5. Ekstrak Riwayat Jabatan: Tuliskan daftar posisi/jabatan yang pernah dipegang kandidat dengan ringkas.
+    2. Tentukan Profil Profesional/Latar Belakang utama kandidat (misal: "Administrasi", "Logistik", "Akuntan", "Tenaga Kesehatan", "IT Support").
+    3. Berikan skor kecocokan (0-100). Jika kandidat berpengalaman di bidang tersebut, berikan nilai minimal 50.
+    4. Ekstrak total pengalaman kerja (angka tahun).
+    5. Ekstrak Riwayat Jabatan (jabatan dan perusahaan secara ringkas).
     6. Ekstrak Pendidikan Terakhir (Jurusan dan Universitas).
     7. Cari nilai IPK/GPA maksimal 4.00.
     8. Sebutkan maksimal 5 skill utama yang relevan.
@@ -95,13 +97,13 @@ def analyze_cv_with_groq(text):
     Berikan jawaban HANYA dalam format JSON yang valid seperti ini:
     {{
         "nama_lengkap": "Nama Kandidat",
-        "profil_profesional": "Latar Belakang Utama",
+        "profil_profesional": "Latar Belakang",
         "skor": 85,
         "pengalaman": "3 Tahun",
         "riwayat_jabatan": "Jabatan 1 di PT X, Jabatan 2 di PT Y",
         "pendidikan_terakhir": "S1 Jurusan - Univ X",
         "ipk": "3.50",
-        "skill": "Skill A, Skill B, Skill C"
+        "skill": "Skill A, Skill B"
     }}
     
     Teks CV:
