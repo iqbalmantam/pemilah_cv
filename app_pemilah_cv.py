@@ -84,7 +84,7 @@ def analyze_cv_with_groq(text):
                 {"role": "system", "content": "Anda adalah sistem output JSON."},
                 {"role": "user", "content": prompt}
             ],
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",  # Diperbarui ke model Groq terbaru yang aktif
             response_format={"type": "json_object"},
             temperature=0.2,
         )
