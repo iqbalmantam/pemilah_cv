@@ -57,20 +57,23 @@ def extract_contact_info(text):
     return email, phone
 
 def analyze_cv_with_groq(text):
+    # Prompt diperbarui untuk meminta detail riwayat jabatan
     prompt = f"""
     Anda adalah HR Expert. Analisis teks CV berikut.
     Tugas Anda:
     1. Pilih SATU posisi paling cocok dari daftar ini: [{DAFTAR_POSISI}]. Jika tidak ada yang cocok, tulis "Tidak Teridentifikasi".
     2. Berikan skor kecocokan (0-100) berdasarkan keahlian teknis.
-    3. Ekstrak total pengalaman kerja dalam bentuk tahun (misal: "3 Tahun"). Jika tidak jelas, tulis "Cek Manual".
-    4. Cari nilai IPK/GPA maksimal 4.00 (misal: "3.80"). Jika tidak ada, tulis "-".
-    5. Sebutkan maksimal 5 skill utama yang relevan dengan posisi tersebut.
+    3. Ekstrak total pengalaman kerja (dalam angka tahun).
+    4. Ekstrak Riwayat Jabatan: Tuliskan daftar posisi/jabatan yang pernah dipegang kandidat dengan ringkas (misal: "Staff IT di PT A, Manager di PT B").
+    5. Cari nilai IPK/GPA maksimal 4.00.
+    6. Sebutkan maksimal 5 skill utama yang relevan.
     
     Berikan jawaban HANYA dalam format JSON yang valid seperti ini:
     {{
         "posisi": "Nama Posisi",
         "skor": 85,
         "pengalaman": "3 Tahun",
+        "riwayat_jabatan": "Jabatan 1 di PT X, Jabatan 2 di PT Y",
         "ipk": "3.50",
         "skill": "Python, SQL, AWS"
     }}
@@ -96,6 +99,7 @@ def analyze_cv_with_groq(text):
             "posisi": "Gagal Dianalisis (Error AI)",
             "skor": 0,
             "pengalaman": "-",
+            "riwayat_jabatan": "-",
             "ipk": "-",
             "skill": "-"
         }
@@ -112,7 +116,7 @@ st.markdown("---")
 uploaded_files = st.file_uploader("Upload File CV (PDF / DOCX)", type=["pdf", "docx"], accept_multiple_files=True)
 
 if uploaded_files:
-    with st.spinner(f"AI sedang membaca dan menganalisis {len(uploaded_files)} dokumen..."):
+    with st.spinner(f"AI sedang menganalisis {len(uploaded_files)} dokumen..."):
         results = []
         progress_bar = st.progress(0)
         
@@ -131,7 +135,8 @@ if uploaded_files:
                     "Nama File": file.name,
                     "Posisi (AI)": ai_analysis.get("posisi", "-"),
                     "Skor (%)": ai_analysis.get("skor", 0),
-                    "Pengalaman (AI)": ai_analysis.get("pengalaman", "-"),
+                    "Pengalaman (Total)": ai_analysis.get("pengalaman", "-"),
+                    "Riwayat Jabatan": ai_analysis.get("riwayat_jabatan", "-"),
                     "IPK": ai_analysis.get("ipk", "-"),
                     "Skill Ditemukan": ai_analysis.get("skill", "-"),
                     "Email": email,
@@ -152,7 +157,6 @@ if uploaded_files:
             df_chart = df_results['Posisi (AI)'].value_counts().reset_index()
             df_chart.columns = ['Posisi', 'Jumlah']
             
-            # Menggunakan format='d' pada sumbu X agar angka berupa bilangan bulat tanpa desimal
             chart = alt.Chart(df_chart).mark_bar(color='#4c78a8').encode(
                 x=alt.X('Jumlah:Q', title='Jumlah Kandidat', axis=alt.Axis(format='d')),
                 y=alt.Y('Posisi:N', sort='-x', title='Posisi')
