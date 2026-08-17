@@ -73,10 +73,11 @@ def extract_contact_info(text):
     email_match = re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', text)
     email = email_match.group(0) if email_match else "-"
     
-    # 2. Cari semua Nomor HP (fleksibel terhadap spasi/strip)
-    phone_pattern = r'(?:\+62|62|08)[0-9][\s-]*[0-9]{3,4}[\s-]*[0-9]{3,4}[\s-]?[0-9]{0,4}'
-    phones = re.findall(phone_pattern, text)
-    unique_phones = list(set([p.replace(" ", "").replace("-", "") for p in phones]))
+    # 2. Cari Nomor HP dengan membersihkan spasi/simbol terlebih dahulu agar 100% akurat
+    text_clean_phone = re.sub(r'[^0-9+]', '', text) # Hanya menyisakan angka dan tanda +
+    phone_matches = re.findall(r'(?:\+62|62|08)[0-9]{8,12}', text_clean_phone)
+    
+    unique_phones = list(set(phone_matches))
     phone = ", ".join(unique_phones) if unique_phones else "-"
     
     return email, phone
@@ -86,7 +87,7 @@ def analyze_cv_with_groq(text):
     Anda adalah HR Expert. Analisis teks CV berikut.
     Tugas Anda:
     1. Ekstrak Nama Lengkap kandidat.
-    2. Tentukan Profil Profesional/Latar Belakang utama kandidat (misal: "Administrasi", "Logistik", "Akuntan", "Tenaga Kesehatan", "IT Support").
+    2. Tentukan Profil Profesional/Latar Belakang utama kandidat (misal: "Administrasi", "Logistik", "Akuntan", "Human Resources", "IT Support").
     3. Berikan skor kecocokan (0-100). Jika kandidat berpengalaman di bidang tersebut, berikan nilai minimal 50.
     4. Ekstrak total pengalaman kerja (angka tahun).
     5. Ekstrak Riwayat Jabatan (jabatan dan perusahaan secara ringkas).
