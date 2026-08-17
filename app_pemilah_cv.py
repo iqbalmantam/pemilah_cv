@@ -81,12 +81,13 @@ def extract_contact_info(text):
     return email, phone
 
 def analyze_cv_with_groq(text):
+    # Prompt diperbarui agar penilaian lebih proporsional untuk kandidat berpengalaman
     prompt = f"""
     Anda adalah HR Expert. Analisis teks CV berikut.
     Tugas Anda:
     1. Ekstrak Nama Lengkap kandidat.
     2. Pilih SATU posisi paling cocok dari daftar ini: [{DAFTAR_POSISI}]. Jika tidak ada yang cocok, tulis "Tidak Teridentifikasi".
-    3. Berikan skor kecocokan (0-100) berdasarkan keahlian teknis.
+    3. Berikan skor kecocokan (0-100). Jika kandidat berpengalaman di bidang tersebut, berikan nilai minimal 50 meskipun skill teknis tidak eksplisit tertulis.
     4. Ekstrak total pengalaman kerja (dalam angka tahun).
     5. Ekstrak Riwayat Jabatan: Tuliskan daftar posisi/jabatan yang pernah dipegang kandidat dengan ringkas.
     6. Ekstrak Pendidikan Terakhir (Jurusan dan Universitas, misal: "S1 Teknik Informatika - Univ X").
@@ -209,6 +210,6 @@ if uploaded_files:
 
         st.subheader("📋 Tabel Hasil Screening")
         
-        # Merender tabel menggunakan HTML kustom
+        # Merender tabel menggunakan HTML kustom agar wrap text aktif
         table_html = df_display.to_html(classes='styled-table', index=False, escape=False)
         st.markdown(table_html, unsafe_allow_html=True)
