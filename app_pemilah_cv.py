@@ -10,12 +10,37 @@ from groq import Groq
 # Konfigurasi Halaman
 st.set_page_config(page_title="AI CV Screener", page_icon="🤖", layout="wide")
 
-# CSS untuk menyembunyikan Header, Logo GitHub, Menu, dan Footer Streamlit
+# CSS untuk menyembunyikan Header/Footer Streamlit & Mengaktifkan Wrap Text pada Tabel
 hide_streamlit_style = """
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+    
+    /* Styling Tabel & Wrap Text */
+    .styled-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        font-size: 14px;
+        font-family: sans-serif;
+        background-color: #0e1117;
+        color: #fafafa;
+    }
+    .styled-table th, .styled-table td {
+        padding: 12px 15px;
+        border: 1px solid #262730;
+        text-align: left;
+        word-break: break-word;
+        white-space: normal !important;
+    }
+    .styled-table th {
+        background-color: #161a25;
+        font-weight: bold;
+    }
+    .styled-table tr:nth-child(even) {
+        background-color: #121620;
+    }
     </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -57,7 +82,6 @@ def extract_contact_info(text):
     return email, phone
 
 def analyze_cv_with_groq(text):
-    # Prompt diperbarui untuk meminta detail riwayat jabatan
     prompt = f"""
     Anda adalah HR Expert. Analisis teks CV berikut.
     Tugas Anda:
@@ -135,7 +159,7 @@ if uploaded_files:
                     "Nama File": file.name,
                     "Posisi (AI)": ai_analysis.get("posisi", "-"),
                     "Skor (%)": ai_analysis.get("skor", 0),
-                    "Pengalaman (Total)": ai_analysis.get("pengalaman", "-"),
+                    "Pengalaman": ai_analysis.get("pengalaman", "-"),
                     "Riwayat Jabatan": ai_analysis.get("riwayat_jabatan", "-"),
                     "IPK": ai_analysis.get("ipk", "-"),
                     "Skill Ditemukan": ai_analysis.get("skill", "-"),
@@ -178,4 +202,7 @@ if uploaded_files:
             st.download_button(label="📥 Download Data (CSV)", data=csv, file_name='hasil_screening_ai.csv', mime='text/csv')
 
         st.subheader("📋 Tabel Hasil Screening")
-        st.dataframe(df_display, use_container_width=True)
+        
+        # Merender tabel menggunakan HTML kustom agar fitur wrap text aktif sempurna
+        table_html = df_display.to_html(classes='styled-table', index=False, escape=False)
+        st.markdown(table_html, unsafe_allow_html=True)
