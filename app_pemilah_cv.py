@@ -2,7 +2,6 @@ import streamlit as st
 import PyPDF2
 import pandas as pd
 import docx
-import re
 import json
 import altair as alt
 from groq import Groq
@@ -10,36 +9,15 @@ from groq import Groq
 # Konfigurasi Halaman
 st.set_page_config(page_title="AI CV Screener", page_icon="🤖", layout="wide")
 
-# CSS untuk menyembunyikan Header/Footer Streamlit & Mengaktifkan Wrap Text
+# CSS untuk Rapi
 hide_streamlit_style = """
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    
-    .styled-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 10px;
-        font-size: 14px;
-        font-family: sans-serif;
-        background-color: #0e1117;
-        color: #fafafa;
-    }
-    .styled-table th, .styled-table td {
-        padding: 12px 15px;
-        border: 1px solid #262730;
-        text-align: left;
-        word-break: break-word;
-        white-space: normal !important;
-    }
-    .styled-table th {
-        background-color: #161a25;
-        font-weight: bold;
-    }
-    .styled-table tr:nth-child(even) {
-        background-color: #121620;
-    }
+    .styled-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; background-color: #0e1117; color: #fafafa; }
+    .styled-table th, .styled-table td { padding: 12px 15px; border: 1px solid #262730; text-align: left; word-break: break-word; white-space: normal !important; }
+    .styled-table th { background-color: #161a25; font-weight: bold; }
     </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -56,7 +34,8 @@ except:
 def extract_text_from_pdf(pdf_file):
     try:
         reader = PyPDF2.PdfReader(pdf_file)
-        return "".join([page.extract_text() for page in reader.pages if page.extract_text()])
+        # Mengambil seluruh teks dengan spasi
+        return " ".join([page.extract_text() for page in reader.pages if page.extract_text()])
     except:
         return ""
 
@@ -67,43 +46,28 @@ def extract_text_from_docx(docx_file):
     except:
         return ""
 
-# ==================== FUNGSI REGEX & AI ====================
-def extract_contact_info(text):
-    # 1. Cari Email
-    email_match = re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', text)
-    email = email_match.group(0) if email_match else "-"
-    
-    # 2. Cari Nomor HP dengan batas karakter spasi/strip yang disesuaikan
-    phone_pattern = r'(?:\+62|62|08)[\s\-0-9]{8,25}'
-    matches = re.findall(phone_pattern, text)
-    
-    cleaned_phones = []
-    for m in matches:
-        num = re.sub(r'[^0-9+]', '', m)
-        if 9 <= len(num.replace('+', '')) <= 14:
-            cleaned_phones.append(num)
-            
-    unique_phones = list(set(cleaned_phones))
-    phone = ", ".join(unique_phones) if unique_phones else "-"
-    
-    return email, phone
-
+# ==================== FUNGSI AI ====================
 def analyze_cv_with_groq(text):
+    # Prompt diperbarui: Meminta AI mengekstrak Nomor HP secara eksplisit
     prompt = f"""
     Anda adalah HR Expert. Analisis teks CV berikut.
     Tugas Anda:
-    1. Ekstrak Nama Lengkap kandidat.
-    2. Tentukan Profil Profesional/Latar Belakang utama kandidat (misal: "Administrasi", "Logistik", "Akuntan", "Human Resources", "IT Support").
-    3. Berikan skor kecocokan (0-100). Jika kandidat berpengalaman di bidang tersebut, berikan nilai minimal 50.
-    4. Ekstrak total pengalaman kerja (angka tahun).
-    5. Ekstrak Riwayat Jabatan (jabatan dan perusahaan secara ringkas).
-    6. Ekstrak Pendidikan Terakhir (Jurusan dan Universitas).
-    7. Cari nilai IPK/GPA maksimal 4.00.
-    8. Sebutkan maksimal 5 skill utama yang relevan.
+    1. Ekstrak Nama Lengkap.
+    2. Ekstrak semua Nomor HP yang ditemukan di CV.
+    3. Ekstrak Email.
+    4. Tentukan Profil Profesional utama kandidat.
+    5. Berikan skor kecocokan (0-100). Jika kandidat berpengalaman, berikan nilai minimal 50.
+    6. Ekstrak total pengalaman kerja (angka tahun).
+    7. Ekstrak Riwayat Jabatan (jabatan dan perusahaan secara ringkas).
+    8. Ekstrak Pendidikan Terakhir.
+    9. Cari nilai IPK/GPA maksimal 4.00.
+    10. Sebutkan maksimal 5 skill utama.
     
     Berikan jawaban HANYA dalam format JSON yang valid seperti ini:
     {{
-        "nama_lengkap": "Nama Kandidat",
+        "nama_lengkap": "Nama",
+        "email": "Email",
+        "no_hp": "08123456789",
         "profil_profesional": "Latar Belakang",
         "skor": 85,
         "pengalaman": "3 Tahun",
@@ -127,95 +91,47 @@ def analyze_cv_with_groq(text):
             response_format={"type": "json_object"},
             temperature=0.2,
         )
-        result_json = json.loads(chat_completion.choices[0].message.content)
-        return result_json
-    except Exception as e:
-        return {
-            "nama_lengkap": "-",
-            "profil_profesional": "Lainnya",
-            "skor": 0,
-            "pengalaman": "-",
-            "riwayat_jabatan": "-",
-            "pendidikan_terakhir": "-",
-            "ipk": "-",
-            "skill": "-"
-        }
-
-def convert_df_to_csv(df):
-    return df.to_csv(index=False).encode('utf-8')
+        return json.loads(chat_completion.choices[0].message.content)
+    except:
+        return {"nama_lengkap": "-", "email": "-", "no_hp": "-", "profil_profesional": "-", "skor": 0, "pengalaman": "-", "riwayat_jabatan": "-", "pendidikan_terakhir": "-", "ipk": "-", "skill": "-"}
 
 # ==================== UI APLIKASI ====================
 st.title("🤖 Smart CV Screener Dashboard (Powered by Groq AI)")
-st.markdown("Sistem pemilah CV berteknologi LLM. Mampu **memahami konteks** pengalaman kerja, bukan sekadar mencocokkan kata kunci.")
 st.caption("Developed by iqbalmantam")
 st.markdown("---")
 
 uploaded_files = st.file_uploader("Upload File CV (PDF / DOCX)", type=["pdf", "docx"], accept_multiple_files=True)
 
 if uploaded_files:
-    with st.spinner(f"AI sedang menganalisis {len(uploaded_files)} dokumen..."):
-        results = []
-        progress_bar = st.progress(0)
-        
-        for i, file in enumerate(uploaded_files):
-            cv_text = ""
-            if file.name.lower().endswith('.pdf'):
-                cv_text = extract_text_from_pdf(file)
-            elif file.name.lower().endswith('.docx'):
-                cv_text = extract_text_from_docx(file)
+    results = []
+    progress_bar = st.progress(0)
+    for i, file in enumerate(uploaded_files):
+        cv_text = extract_text_from_pdf(file) if file.name.lower().endswith('.pdf') else extract_text_from_docx(file)
+        if cv_text:
+            ai = analyze_cv_with_groq(cv_text)
+            results.append({
+                "Nama Lengkap": ai.get("nama_lengkap", "-"),
+                "Profil": ai.get("profil_profesional", "-"),
+                "Skor (%)": ai.get("skor", 0),
+                "Pengalaman": ai.get("pengalaman", "-"),
+                "Jabatan": ai.get("riwayat_jabatan", "-"),
+                "Pendidikan": ai.get("pendidikan_terakhir", "-"),
+                "IPK": ai.get("ipk", "-"),
+                "Skill": ai.get("skill", "-"),
+                "Email": ai.get("email", "-"),
+                "No. HP": ai.get("no_hp", "-")
+            })
+        progress_bar.progress((i + 1) / len(uploaded_files))
             
-            if cv_text:
-                email, phone = extract_contact_info(cv_text)
-                ai_analysis = analyze_cv_with_groq(cv_text)
-                
-                results.append({
-                    "Nama Lengkap": ai_analysis.get("nama_lengkap", "-"),
-                    "Profil Profesional": ai_analysis.get("profil_profesional", "-"),
-                    "Skor (%)": ai_analysis.get("skor", 0),
-                    "Pengalaman": ai_analysis.get("pengalaman", "-"),
-                    "Riwayat Jabatan": ai_analysis.get("riwayat_jabatan", "-"),
-                    "Pendidikan Terakhir": ai_analysis.get("pendidikan_terakhir", "-"),
-                    "IPK": ai_analysis.get("ipk", "-"),
-                    "Skill Ditemukan": ai_analysis.get("skill", "-"),
-                    "Email": email,
-                    "No. HP": phone
-                })
+    df = pd.DataFrame(results).sort_values(by='Skor (%)', ascending=False)
+    
+    # Tampilan Dashboard
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.subheader("📊 Distribusi Profil")
+        st.altair_chart(alt.Chart(df['Profil'].value_counts().reset_index().rename(columns={'index':'Profil','Profil':'Jumlah'})).mark_bar().encode(
+            x='Jumlah:Q', y=alt.Y('Profil:N', sort='-x')), use_container_width=True)
             
-            progress_bar.progress((i + 1) / len(uploaded_files))
-                
-        df_results = pd.DataFrame(results)
-        df_results = df_results.sort_values(by='Skor (%)', ascending=False)
-        
-        st.success("✅ Analisis AI Selesai!")
-        
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.subheader("📊 Distribusi Profil")
-            
-            df_chart = df_results['Profil Profesional'].value_counts().reset_index()
-            df_chart.columns = ['Profil', 'Jumlah']
-            
-            chart = alt.Chart(df_chart).mark_bar(color='#4c78a8').encode(
-                x=alt.X('Jumlah:Q', title='Jumlah Kandidat', axis=alt.Axis(format='d')),
-                y=alt.Y('Profil:N', sort='-x', title='Profil Profesional')
-            ).properties(height=250)
-            
-            st.altair_chart(chart, use_container_width=True)
-            
-        with col2:
-            st.subheader("🔎 Filter Kandidat")
-            profil_unik = ["Semua Profil"] + list(df_results['Profil Profesional'].unique())
-            pilih_profil = st.selectbox("Tampilkan kandidat berdasarkan profil:", profil_unik)
-            
-            if pilih_profil != "Semua Profil":
-                df_display = df_results[df_results['Profil Profesional'] == pilih_profil]
-            else:
-                df_display = df_results.copy()
-            
-            csv = convert_df_to_csv(df_display)
-            st.download_button(label="📥 Download Data (CSV)", data=csv, file_name='hasil_screening_ai.csv', mime='text/csv')
-
-        st.subheader("📋 Tabel Hasil Screening")
-        
-        table_html = df_display.to_html(classes='styled-table', index=False, escape=False)
-        st.markdown(table_html, unsafe_allow_html=True)
+    with col2:
+        st.subheader("📋 Tabel Screening")
+        st.markdown(df.to_html(classes='styled-table', index=False, escape=False), unsafe_allow_html=True)
