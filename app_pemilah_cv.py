@@ -10,14 +10,13 @@ from groq import Groq
 # Konfigurasi Halaman
 st.set_page_config(page_title="AI CV Screener", page_icon="🤖", layout="wide")
 
-# CSS untuk menyembunyikan Header/Footer Streamlit & Mengaktifkan Wrap Text pada Tabel
+# CSS untuk menyembunyikan Header/Footer Streamlit & Mengaktifkan Wrap Text
 hide_streamlit_style = """
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Styling Tabel & Wrap Text */
     .styled-table {
         width: 100%;
         border-collapse: collapse;
@@ -85,19 +84,23 @@ def analyze_cv_with_groq(text):
     prompt = f"""
     Anda adalah HR Expert. Analisis teks CV berikut.
     Tugas Anda:
-    1. Pilih SATU posisi paling cocok dari daftar ini: [{DAFTAR_POSISI}]. Jika tidak ada yang cocok, tulis "Tidak Teridentifikasi".
-    2. Berikan skor kecocokan (0-100) berdasarkan keahlian teknis.
-    3. Ekstrak total pengalaman kerja (dalam angka tahun).
-    4. Ekstrak Riwayat Jabatan: Tuliskan daftar posisi/jabatan yang pernah dipegang kandidat dengan ringkas (misal: "Staff IT di PT A, Manager di PT B").
-    5. Cari nilai IPK/GPA maksimal 4.00.
-    6. Sebutkan maksimal 5 skill utama yang relevan.
+    1. Ekstrak Nama Lengkap kandidat.
+    2. Pilih SATU posisi paling cocok dari daftar ini: [{DAFTAR_POSISI}]. Jika tidak ada yang cocok, tulis "Tidak Teridentifikasi".
+    3. Berikan skor kecocokan (0-100) berdasarkan keahlian teknis.
+    4. Ekstrak total pengalaman kerja (dalam angka tahun).
+    5. Ekstrak Riwayat Jabatan: Tuliskan daftar posisi/jabatan yang pernah dipegang kandidat dengan ringkas.
+    6. Ekstrak Pendidikan Terakhir (Jurusan dan Universitas, misal: "S1 Teknik Informatika - Univ X").
+    7. Cari nilai IPK/GPA maksimal 4.00.
+    8. Sebutkan maksimal 5 skill utama yang relevan.
     
     Berikan jawaban HANYA dalam format JSON yang valid seperti ini:
     {{
+        "nama_lengkap": "Nama Kandidat",
         "posisi": "Nama Posisi",
         "skor": 85,
         "pengalaman": "3 Tahun",
         "riwayat_jabatan": "Jabatan 1 di PT X, Jabatan 2 di PT Y",
+        "pendidikan_terakhir": "S1 Teknik Informatika - Univ X",
         "ipk": "3.50",
         "skill": "Python, SQL, AWS"
     }}
@@ -120,10 +123,12 @@ def analyze_cv_with_groq(text):
         return result_json
     except Exception as e:
         return {
+            "nama_lengkap": "-",
             "posisi": "Gagal Dianalisis (Error AI)",
             "skor": 0,
             "pengalaman": "-",
             "riwayat_jabatan": "-",
+            "pendidikan_terakhir": "-",
             "ipk": "-",
             "skill": "-"
         }
@@ -156,11 +161,12 @@ if uploaded_files:
                 ai_analysis = analyze_cv_with_groq(cv_text)
                 
                 results.append({
-                    "Nama File": file.name,
+                    "Nama Lengkap": ai_analysis.get("nama_lengkap", "-"),
                     "Posisi (AI)": ai_analysis.get("posisi", "-"),
                     "Skor (%)": ai_analysis.get("skor", 0),
                     "Pengalaman": ai_analysis.get("pengalaman", "-"),
                     "Riwayat Jabatan": ai_analysis.get("riwayat_jabatan", "-"),
+                    "Pendidikan Terakhir": ai_analysis.get("pendidikan_terakhir", "-"),
                     "IPK": ai_analysis.get("ipk", "-"),
                     "Skill Ditemukan": ai_analysis.get("skill", "-"),
                     "Email": email,
@@ -203,6 +209,6 @@ if uploaded_files:
 
         st.subheader("📋 Tabel Hasil Screening")
         
-        # Merender tabel menggunakan HTML kustom agar fitur wrap text aktif sempurna
+        # Merender tabel menggunakan HTML kustom
         table_html = df_display.to_html(classes='styled-table', index=False, escape=False)
         st.markdown(table_html, unsafe_allow_html=True)
