@@ -6,11 +6,20 @@ import re
 import json
 from groq import Groq
 
-# Konfigurasi Halaman
+# Konfigurasi Halaman (Harus di baris paling atas)
 st.set_page_config(page_title="AI CV Screener", page_icon="🤖", layout="wide")
 
+# CSS untuk menyembunyikan Header, Logo GitHub, Menu, dan Footer Streamlit
+hide_streamlit_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 # ==================== PENGATURAN GROQ AI ====================
-# Mengambil API Key dari Streamlit Secrets
 try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=GROQ_API_KEY)
@@ -18,7 +27,6 @@ except:
     st.error("⚠️ GROQ_API_KEY belum diatur di Streamlit Secrets. Silakan tambahkan terlebih dahulu.")
     st.stop()
 
-# Daftar posisi untuk prompt AI
 DAFTAR_POSISI = "Software Engineer, Data Analyst, Digital Marketer, UI/UX Designer, HR / Recruitment"
 
 # ==================== FUNGSI EKSTRAKSI TEKS ====================
@@ -38,7 +46,6 @@ def extract_text_from_docx(docx_file):
 
 # ==================== FUNGSI REGEX & AI ====================
 def extract_contact_info(text):
-    """Tetap gunakan Regex untuk Email dan No HP karena lebih pasti dan hemat token"""
     email_match = re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', text)
     email = email_match.group(0) if email_match else "-"
     
@@ -49,7 +56,6 @@ def extract_contact_info(text):
     return email, phone
 
 def analyze_cv_with_groq(text):
-    """Fungsi utama menggunakan AI Groq untuk menganalisis konteks CV"""
     prompt = f"""
     Anda adalah HR Expert. Analisis teks CV berikut.
     Tugas Anda:
@@ -69,27 +75,22 @@ def analyze_cv_with_groq(text):
     }}
     
     Teks CV:
-    {text[:4000]}  # Membatasi teks agar tidak melebihi token limit
+    {text[:4000]}
     """
     
     try:
-        # Memanggil API Groq (Menggunakan model llama3-8b-8192 yang sangat cepat)
         chat_completion = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": "Anda adalah sistem output JSON."},
                 {"role": "user", "content": prompt}
             ],
             model="llama3-8b-8192",
-            response_format={"type": "json_object"}, # Memaksa output berupa JSON
-            temperature=0.2, # Dibuat rendah agar jawabannya konsisten/objektif
+            response_format={"type": "json_object"},
+            temperature=0.2,
         )
-        
-        # Mengubah teks JSON dari AI menjadi Dictionary Python
         result_json = json.loads(chat_completion.choices[0].message.content)
         return result_json
-        
     except Exception as e:
-        # Jika gagal (misal API limit), kembalikan nilai default
         return {
             "posisi": "Gagal Dianalisis (Error AI)",
             "skor": 0,
@@ -104,14 +105,14 @@ def convert_df_to_csv(df):
 # ==================== UI APLIKASI ====================
 st.title("🤖 Smart CV Screener Dashboard (Powered by Groq AI)")
 st.markdown("Sistem pemilah CV berteknologi LLM. Mampu **memahami konteks** pengalaman kerja, bukan sekadar mencocokkan kata kunci.")
+st.caption("Developed by iqbalmantam")
+st.markdown("---")
 
 uploaded_files = st.file_uploader("Upload File CV (PDF / DOCX)", type=["pdf", "docx"], accept_multiple_files=True)
 
 if uploaded_files:
     with st.spinner(f"AI sedang membaca dan menganalisis {len(uploaded_files)} dokumen. Mohon tunggu..."):
         results = []
-        
-        # Progress bar agar UI terlihat lebih interaktif
         progress_bar = st.progress(0)
         
         for i, file in enumerate(uploaded_files):
@@ -122,9 +123,7 @@ if uploaded_files:
                 cv_text = extract_text_from_docx(file)
             
             if cv_text:
-                # 1. Gunakan Regex untuk data pasti
                 email, phone = extract_contact_info(cv_text)
-                # 2. Gunakan AI Groq untuk analisis pintar
                 ai_analysis = analyze_cv_with_groq(cv_text)
                 
                 results.append({
@@ -138,14 +137,11 @@ if uploaded_files:
                     "No. HP": phone
                 })
             
-            # Update progress bar
             progress_bar.progress((i + 1) / len(uploaded_files))
                 
-        # Memproses hasil ke dalam tabel
         df_results = pd.DataFrame(results)
         df_results = df_results.sort_values(by='Skor (%)', ascending=False)
         
-        # Tampilan
         st.success("✅ Analisis AI Selesai!")
         
         col1, col2 = st.columns([1, 2])
