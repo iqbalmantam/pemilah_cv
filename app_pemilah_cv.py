@@ -4,9 +4,10 @@ import pandas as pd
 import docx
 import re
 import json
+import altair as alt
 from groq import Groq
 
-# Konfigurasi Halaman (Harus di baris paling atas)
+# Konfigurasi Halaman
 st.set_page_config(page_title="AI CV Screener", page_icon="🤖", layout="wide")
 
 # CSS untuk menyembunyikan Header, Logo GitHub, Menu, dan Footer Streamlit
@@ -24,7 +25,7 @@ try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=GROQ_API_KEY)
 except:
-    st.error("⚠️ GROQ_API_KEY belum diatur di Streamlit Secrets. Silakan tambahkan terlebih dahulu.")
+    st.error("⚠️ GROQ_API_KEY belum diatur di Streamlit Secrets.")
     st.stop()
 
 DAFTAR_POSISI = "Software Engineer, Data Analyst, Digital Marketer, UI/UX Designer, HR / Recruitment"
@@ -84,7 +85,7 @@ def analyze_cv_with_groq(text):
                 {"role": "system", "content": "Anda adalah sistem output JSON."},
                 {"role": "user", "content": prompt}
             ],
-            model="llama-3.1-8b-instant",  # Diperbarui ke model Groq terbaru yang aktif
+            model="llama-3.1-8b-instant",
             response_format={"type": "json_object"},
             temperature=0.2,
         )
@@ -111,7 +112,7 @@ st.markdown("---")
 uploaded_files = st.file_uploader("Upload File CV (PDF / DOCX)", type=["pdf", "docx"], accept_multiple_files=True)
 
 if uploaded_files:
-    with st.spinner(f"AI sedang membaca dan menganalisis {len(uploaded_files)} dokumen. Mohon tunggu..."):
+    with st.spinner(f"AI sedang membaca dan menganalisis {len(uploaded_files)} dokumen..."):
         results = []
         progress_bar = st.progress(0)
         
@@ -147,7 +148,16 @@ if uploaded_files:
         col1, col2 = st.columns([1, 2])
         with col1:
             st.subheader("📊 Distribusi Posisi")
-            st.bar_chart(df_results['Posisi (AI)'].value_counts())
+            
+            df_chart = df_results['Posisi (AI)'].value_counts().reset_index()
+            df_chart.columns = ['Posisi', 'Jumlah']
+            
+            chart = alt.Chart(df_chart).mark_bar(color='#4c78a8').encode(
+                x=alt.X('Jumlah:Q', title='Jumlah Kandidat'),
+                y=alt.Y('Posisi:N', sort='-x', title='Posisi')
+            ).properties(height=250)
+            
+            st.altair_chart(chart, use_container_width=True)
             
         with col2:
             st.subheader("🔎 Filter Kandidat")
