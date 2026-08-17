@@ -52,8 +52,6 @@ except:
     st.error("⚠️ GROQ_API_KEY belum diatur di Streamlit Secrets.")
     st.stop()
 
-DAFTAR_POSISI = "Software Engineer, Data Analyst, Digital Marketer, UI/UX Designer, HR / Recruitment"
-
 # ==================== FUNGSI EKSTRAKSI TEKS ====================
 def extract_text_from_pdf(pdf_file):
     try:
@@ -81,29 +79,29 @@ def extract_contact_info(text):
     return email, phone
 
 def analyze_cv_with_groq(text):
-    # Prompt diperbarui agar penilaian lebih proporsional untuk kandidat berpengalaman
+    # Prompt diperbarui: AI menentukan profil secara mandiri
     prompt = f"""
     Anda adalah HR Expert. Analisis teks CV berikut.
     Tugas Anda:
     1. Ekstrak Nama Lengkap kandidat.
-    2. Pilih SATU posisi paling cocok dari daftar ini: [{DAFTAR_POSISI}]. Jika tidak ada yang cocok, tulis "Tidak Teridentifikasi".
-    3. Berikan skor kecocokan (0-100). Jika kandidat berpengalaman di bidang tersebut, berikan nilai minimal 50 meskipun skill teknis tidak eksplisit tertulis.
+    2. Tentukan Profil Profesional/Latar Belakang utama kandidat (misal: "Administrasi", "Logistik", "Akuntan", "Tenaga Kesehatan", "IT Support"). Jangan gunakan daftar kaku, tentukan berdasarkan isi CV.
+    3. Berikan skor kecocokan (0-100) berdasarkan profil profesional tersebut terhadap dunia kerja.
     4. Ekstrak total pengalaman kerja (dalam angka tahun).
     5. Ekstrak Riwayat Jabatan: Tuliskan daftar posisi/jabatan yang pernah dipegang kandidat dengan ringkas.
-    6. Ekstrak Pendidikan Terakhir (Jurusan dan Universitas, misal: "S1 Teknik Informatika - Univ X").
+    6. Ekstrak Pendidikan Terakhir (Jurusan dan Universitas).
     7. Cari nilai IPK/GPA maksimal 4.00.
     8. Sebutkan maksimal 5 skill utama yang relevan.
     
     Berikan jawaban HANYA dalam format JSON yang valid seperti ini:
     {{
         "nama_lengkap": "Nama Kandidat",
-        "posisi": "Nama Posisi",
+        "profil_profesional": "Latar Belakang Utama",
         "skor": 85,
         "pengalaman": "3 Tahun",
         "riwayat_jabatan": "Jabatan 1 di PT X, Jabatan 2 di PT Y",
-        "pendidikan_terakhir": "S1 Teknik Informatika - Univ X",
+        "pendidikan_terakhir": "S1 Jurusan - Univ X",
         "ipk": "3.50",
-        "skill": "Python, SQL, AWS"
+        "skill": "Skill A, Skill B, Skill C"
     }}
     
     Teks CV:
@@ -125,7 +123,7 @@ def analyze_cv_with_groq(text):
     except Exception as e:
         return {
             "nama_lengkap": "-",
-            "posisi": "Gagal Dianalisis (Error AI)",
+            "profil_profesional": "Lainnya",
             "skor": 0,
             "pengalaman": "-",
             "riwayat_jabatan": "-",
@@ -163,7 +161,7 @@ if uploaded_files:
                 
                 results.append({
                     "Nama Lengkap": ai_analysis.get("nama_lengkap", "-"),
-                    "Posisi (AI)": ai_analysis.get("posisi", "-"),
+                    "Profil Profesional": ai_analysis.get("profil_profesional", "-"),
                     "Skor (%)": ai_analysis.get("skor", 0),
                     "Pengalaman": ai_analysis.get("pengalaman", "-"),
                     "Riwayat Jabatan": ai_analysis.get("riwayat_jabatan", "-"),
@@ -183,25 +181,25 @@ if uploaded_files:
         
         col1, col2 = st.columns([1, 2])
         with col1:
-            st.subheader("📊 Distribusi Posisi")
+            st.subheader("📊 Distribusi Profil")
             
-            df_chart = df_results['Posisi (AI)'].value_counts().reset_index()
-            df_chart.columns = ['Posisi', 'Jumlah']
+            df_chart = df_results['Profil Profesional'].value_counts().reset_index()
+            df_chart.columns = ['Profil', 'Jumlah']
             
             chart = alt.Chart(df_chart).mark_bar(color='#4c78a8').encode(
                 x=alt.X('Jumlah:Q', title='Jumlah Kandidat', axis=alt.Axis(format='d')),
-                y=alt.Y('Posisi:N', sort='-x', title='Posisi')
+                y=alt.Y('Profil:N', sort='-x', title='Profil Profesional')
             ).properties(height=250)
             
             st.altair_chart(chart, use_container_width=True)
             
         with col2:
             st.subheader("🔎 Filter Kandidat")
-            posisi_unik = ["Semua Posisi"] + list(df_results['Posisi (AI)'].unique())
-            pilih_posisi = st.selectbox("Tampilkan kandidat untuk posisi:", posisi_unik)
+            profil_unik = ["Semua Profil"] + list(df_results['Profil Profesional'].unique())
+            pilih_profil = st.selectbox("Tampilkan kandidat berdasarkan profil:", profil_unik)
             
-            if pilih_posisi != "Semua Posisi":
-                df_display = df_results[df_results['Posisi (AI)'] == pilih_posisi]
+            if pilih_profil != "Semua Profil":
+                df_display = df_results[df_results['Profil Profesional'] == pilih_profil]
             else:
                 df_display = df_results.copy()
             
@@ -210,6 +208,5 @@ if uploaded_files:
 
         st.subheader("📋 Tabel Hasil Screening")
         
-        # Merender tabel menggunakan HTML kustom agar wrap text aktif
         table_html = df_display.to_html(classes='styled-table', index=False, escape=False)
         st.markdown(table_html, unsafe_allow_html=True)
