@@ -66,7 +66,7 @@ def extract_text_from_docx(docx_file):
     except:
         return ""
 
-# ==================== FUNGSI AI ====================
+# ==================== FUNGSI AI DENGAN MULTI-MODEL FALLBACK ====================
 def analyze_cv_with_groq(text):
     prompt = f"""
     Anda adalah HR Expert. Analisis teks CV berikut.
@@ -100,35 +100,49 @@ def analyze_cv_with_groq(text):
     {text[:4000]}
     """
     
-    try:
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": "Anda adalah sistem output JSON murni."},
-                {"role": "user", "content": prompt}
-            ],
-            model="llama-3.3-70b-versatile",
-            temperature=0.1,
-        )
-        
-        raw_content = chat_completion.choices[0].message.content.strip()
-        
-        if raw_content.startswith("```json"):
-            raw_content = raw_content[7:]
-        elif raw_content.startswith("```"):
-            raw_content = raw_content[3:]
-        if raw_content.endswith("```"):
-            raw_content = raw_content[:-3]
+    # Daftar model cadangan yang akan dicoba secara otomatis
+    models_to_try = [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "llama3-8b-8192",
+        "llama3-70b-8192",
+        "mixtral-8x7b-32768"
+    ]
+    
+    last_error = None
+    for model_name in models_to_try:
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": "Anda adalah sistem output JSON murni."},
+                    {"role": "user", "content": prompt}
+                ],
+                model=model_name,
+                temperature=0.1,
+            )
             
-        return json.loads(raw_content.strip())
-        
-    except Exception as e:
-        st.error(f"Gagal memproses AI: {e}")
-        return {
-            "nama_lengkap": "-", "email": "-", "no_hp": "-", 
-            "profil_profesional": "Lainnya", "skor": 0, 
-            "pengalaman": "-", "riwayat_jabatan": "-", 
-            "pendidikan_terakhir": "-", "ipk": "-", "skill": "-"
-        }
+            raw_content = chat_completion.choices[0].message.content.strip()
+            
+            if raw_content.startswith("```json"):
+                raw_content = raw_content[7:]
+            elif raw_content.startswith("```"):
+                raw_content = raw_content[3:]
+            if raw_content.endswith("```"):
+                raw_content = raw_content[:-3]
+                
+            return json.loads(raw_content.strip())
+            
+        except Exception as e:
+            last_error = e
+            continue
+            
+    st.error(f"Gagal memproses AI dengan semua model. Error terakhir: {last_error}")
+    return {
+        "nama_lengkap": "-", "email": "-", "no_hp": "-", 
+        "profil_profesional": "Lainnya", "skor": 0, 
+        "pengalaman": "-", "riwayat_jabatan": "-", 
+        "pendidikan_terakhir": "-", "ipk": "-", "skill": "-"
+    }
 
 def convert_df_to_csv(df):
     return df.to_csv(index=False).encode('utf-8')
