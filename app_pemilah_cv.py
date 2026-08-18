@@ -106,7 +106,7 @@ def analyze_cv_with_groq(text):
                 {"role": "system", "content": "Anda adalah sistem output JSON murni."},
                 {"role": "user", "content": prompt}
             ],
-            model="llama-3.2-3b-preview",
+            model="llama-3.3-70b-versatile",
             temperature=0.1,
         )
         
@@ -151,7 +151,7 @@ if uploaded_files:
             if cv_text:
                 ai = analyze_cv_with_groq(cv_text)
                 results.append({
-                    "Nama Lengkap": ai.get("nama__lengkap", "-") if "nama__lengkap" in ai else ai.get("nama_lengkap", "-"),
+                    "Nama Lengkap": ai.get("nama_lengkap", "-"),
                     "Profil Profesional": ai.get("profil_profesional", "-"),
                     "Skor (%)": ai.get("skor", 0),
                     "Pengalaman": ai.get("pengalaman", "-"),
