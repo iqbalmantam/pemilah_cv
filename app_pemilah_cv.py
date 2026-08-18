@@ -67,14 +67,13 @@ def extract_text_from_docx(docx_file):
     except:
         return ""
 
-# ==================== FUNGSI AI DENGAN FILTER NO HP KANDIDAT UTAMA ====================
+# ==================== FUNGSI AI: EKSTRAK SEMUA NO HP KANDIDAT ====================
 def analyze_cv_with_groq(text):
     prompt = f"""
     Anda adalah HR Expert. Analisis teks CV berikut.
     Tugas Anda:
     1. Ekstrak Nama Lengkap kandidat utama.
-    2. Ekstrak HANYA Nomor HP/Seluler utama milik kandidat tersebut (biasanya tercantum di bagian atas dekat nama atau informasi kontak utama). 
-       JANGAN masukkan nomor telepon rumah/kantor (seperti 021, 022, dll) dan JANGAN masukkan nomor HP orang lain atau nomor kontak referensi/darurat.
+    2. Ekstrak SEMUA Nomor HP/Seluler milik kandidat tersebut (jika ada lebih dari satu seperti Mobile 1 dan Mobile 2, cantumkan semuanya dan pisahkan dengan koma). JANGAN masukkan nomor telepon rumah/kantor (seperti 021, 022, dll) dan JANGAN masukkan nomor orang lain atau referensi.
     3. Ekstrak Email utama kandidat.
     4. Tentukan Profil Profesional/Latar Belakang utama kandidat (misal: "Administrasi", "Logistik", "Akuntan", "Human Resources", "IT Support").
     5. Berikan skor kecocokan (0-100). Jika kandidat berpengalaman, berikan nilai minimal 50.
@@ -88,7 +87,7 @@ def analyze_cv_with_groq(text):
     {{
         "nama_lengkap": "Nama Kandidat",
         "email": "Email",
-        "no_hp": "No HP Utama Kandidat",
+        "no_hp": "0812..., 0896...",
         "profil_profesional": "Latar Belakang",
         "skor": 85,
         "pengalaman": "3 Tahun",
