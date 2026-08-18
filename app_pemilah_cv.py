@@ -47,8 +47,8 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=GROQ_API_KEY)
-except:
-    st.error("⚠️ GROQ_API_KEY belum diatur di Streamlit Secrets.")
+except Exception as e:
+    st.error(f"⚠️ GROQ_API_KEY belum diatur di Streamlit Secrets. Error: {e}")
     st.stop()
 
 # ==================== FUNGSI EKSTRAKSI TEKS ====================
@@ -82,7 +82,7 @@ def analyze_cv_with_groq(text):
     9. Cari nilai IPK/GPA maksimal 4.00.
     10. Sebutkan maksimal 5 skill utama yang relevan.
     
-    Berikan jawaban HANYA dalam format JSON yang valid seperti ini:
+    Berikan jawaban HANYA dalam format JSON yang valid tanpa teks lain atau markdown block seperti ```json:
     {{
         "nama_lengkap": "Nama Kandidat",
         "email": "Email",
@@ -103,15 +103,26 @@ def analyze_cv_with_groq(text):
     try:
         chat_completion = client.chat.completions.create(
             messages=[
-                {"role": "system", "content": "Anda adalah sistem output JSON."},
+                {"role": "system", "content": "Anda adalah sistem output JSON murni."},
                 {"role": "user", "content": prompt}
             ],
             model="llama-3.1-8b-instant",
-            response_format={"type": "json_object"},
-            temperature=0.2,
+            temperature=0.1,
         )
-        return json.loads(chat_completion.choices[0].message.content)
-    except:
+        
+        raw_content = chat_completion.choices[0].message.content.strip()
+        
+        if raw_content.startswith("```json"):
+            raw_content = raw_content[7:]
+        elif raw_content.startswith("```"):
+            raw_content = raw_content[3:]
+        if raw_content.endswith("```"):
+            raw_content = raw_content[:-3]
+            
+        return json.loads(raw_content.strip())
+        
+    except Exception as e:
+        st.error(f"Gagal memproses AI: {e}")
         return {
             "nama_lengkap": "-", "email": "-", "no_hp": "-", 
             "profil_profesional": "Lainnya", "skor": 0, 
