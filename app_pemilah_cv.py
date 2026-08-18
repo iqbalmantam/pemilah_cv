@@ -3,6 +3,7 @@ import PyPDF2
 import pandas as pd
 import docx
 import json
+import re
 import altair as alt
 from groq import Groq
 
@@ -66,7 +67,7 @@ def extract_text_from_docx(docx_file):
     except:
         return ""
 
-# ==================== FUNGSI AI DENGAN MULTI-MODEL FALLBACK ====================
+# ==================== FUNGSI AI DENGAN MULTI-MODEL & PARSER AMAN ====================
 def analyze_cv_with_groq(text):
     prompt = f"""
     Anda adalah HR Expert. Analisis teks CV berikut.
@@ -82,7 +83,7 @@ def analyze_cv_with_groq(text):
     9. Cari nilai IPK/GPA maksimal 4.00.
     10. Sebutkan maksimal 5 skill utama yang relevan.
     
-    Berikan jawaban HANYA dalam format JSON yang valid tanpa teks lain atau markdown block seperti ```json:
+    Berikan jawaban HANYA dalam format JSON murni dengan struktur berikut tanpa teks lain di luar JSON:
     {{
         "nama_lengkap": "Nama Kandidat",
         "email": "Email",
@@ -100,13 +101,12 @@ def analyze_cv_with_groq(text):
     {text[:4000]}
     """
     
-    # Daftar model cadangan yang akan dicoba secara otomatis
+    # Daftar model aktif saat ini di Groq
     models_to_try = [
+        "deepseek-r1-distill-llama-70b",
         "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
-        "llama3-8b-8192",
-        "llama3-70b-8192",
-        "mixtral-8x7b-32768"
+        "deepseek-r1-distill-qwen-32b"
     ]
     
     last_error = None
@@ -123,15 +123,12 @@ def analyze_cv_with_groq(text):
             
             raw_content = chat_completion.choices[0].message.content.strip()
             
-            if raw_content.startswith("```json"):
-                raw_content = raw_content[7:]
-            elif raw_content.startswith("```"):
-                raw_content = raw_content[3:]
-            if raw_content.endswith("```"):
-                raw_content = raw_content[:-3]
+            # Ekstrasi teks JSON secara otomatis menggunakan regex (mengabaikan tag think atau markdown)
+            match = re.search(r'\{.*\}', raw_content, re.DOTALL)
+            if match:
+                json_str = match.group(0)
+                return json.loads(json_str)
                 
-            return json.loads(raw_content.strip())
-            
         except Exception as e:
             last_error = e
             continue
