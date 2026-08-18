@@ -67,7 +67,7 @@ def extract_text_from_docx(docx_file):
     except:
         return ""
 
-# ==================== FUNGSI AI DENGAN MULTI-MODEL & PARSER AMAN ====================
+# ==================== FUNGSI AI DENGAN MODEL TERBARU ====================
 def analyze_cv_with_groq(text):
     prompt = f"""
     Anda adalah HR Expert. Analisis teks CV berikut.
@@ -101,12 +101,12 @@ def analyze_cv_with_groq(text):
     {text[:4000]}
     """
     
-    # Daftar model aktif saat ini di Groq
+    # Daftar model aktif terbaru di Groq
     models_to_try = [
-        "deepseek-r1-distill-llama-70b",
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant",
-        "deepseek-r1-distill-qwen-32b"
+        "openai/gpt-oss-20b",
+        "openai/gpt-oss-120b",
+        "qwen/qwen3-32b",
+        "llama-3.3-70b-versatile"
     ]
     
     last_error = None
@@ -123,7 +123,6 @@ def analyze_cv_with_groq(text):
             
             raw_content = chat_completion.choices[0].message.content.strip()
             
-            # Ekstrasi teks JSON secara otomatis menggunakan regex (mengabaikan tag think atau markdown)
             match = re.search(r'\{.*\}', raw_content, re.DOTALL)
             if match:
                 json_str = match.group(0)
@@ -180,7 +179,6 @@ if uploaded_files:
         
         st.success("✅ Analisis AI Selesai!")
         
-        # Layout Atas: Grafik Distribusi (Kolom Kiri) & Filter + Download (Kolom Kanan)
         col1, col2 = st.columns([1, 1])
         
         with col1:
@@ -214,7 +212,6 @@ if uploaded_files:
                 mime='text/csv'
             )
 
-        # Layout Bawah: Tabel Hasil Screening Full Lebar
         st.markdown("---")
         st.subheader("📋 Tabel Hasil Screening")
         table_html = df_display.to_html(classes='styled-table', index=False, escape=False)
